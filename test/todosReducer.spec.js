@@ -1,10 +1,10 @@
 import {expect} from 'chai';
 import deepFreeze from 'deep-freeze';
+import {createStore} from 'redux';
 
 import todos from '../app/reducers/todos.js';
 import visibilityFilter from '../app/reducers/visibilityFilter.js';
 import todoApp from '../app/reducers/todoApp.js';
-console.log(todoApp(undefined, {}));
 
 describe('testing the todos reducer', function() {
   it('should add a given todo to the state', function(done) {
@@ -92,6 +92,13 @@ describe('testing the todos reducer', function() {
     }
     expect(todoApp(undefined, {}))
       .to.deep.equal(initialState)
+    done();
+  });
+
+  it('should create a store', function(done) {
+    const store = createStore(todoApp);
+    expect(store)
+      .to.not.equal(undefined);
     done();
   });
 });
