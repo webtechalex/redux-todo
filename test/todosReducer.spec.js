@@ -4,7 +4,7 @@ import deepFreeze from 'deep-freeze';
 import todos from '../app/reducers/todos.js';
 import visibilityFilter from '../app/reducers/visibilityFilter.js';
 import todoApp from '../app/reducers/todoApp.js';
-// console.log(todoApp());
+console.log(todoApp(undefined, {}));
 
 describe('testing the todos reducer', function() {
   it('should add a given todo to the state', function(done) {
@@ -90,7 +90,7 @@ describe('testing the todos reducer', function() {
       todos: [],
       visibilityFilter: 'SHOW_ALL'
     }
-    expect(todoApp())
+    expect(todoApp(undefined, {}))
       .to.deep.equal(initialState)
     done();
   });
