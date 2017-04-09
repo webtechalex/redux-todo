@@ -1,4 +1,5 @@
 import React, {Component} from 'react';
+import {Provider} from 'react-redux';
 import {combineReducers, createStore} from 'redux';
 import ReactDOM from 'react-dom';
 
@@ -29,12 +30,10 @@ const getVisibleTodos = (
   }
 }
 
-// receive ADD_TODO dispatch call and call it on button click, passing the input value and nextTodoId
-const AddTodo = ({
-  onAddClick
-}) => {
+// This component fits neither the role of container, nor presentational component, but the functionality is very simple
+const AddTodo = () => {
 
-  // as this is a functional component, the ref can be a variable instead of a property on the class
+  // as this is a functional component, the input ref can be a variable instead of a property on the class
   let input;
 
   return (
@@ -45,7 +44,11 @@ const AddTodo = ({
       />
       <button
         onClick={() => {
-          onAddClick(input.value);
+          store.dispatch({
+            type: 'ADD_TODO',
+            id: nextTodoId++,
+            text: input.value
+          });
           input.value = '';
         }}
       >
@@ -75,6 +78,42 @@ const Todo = ({
   </li>
 );
 
+// VisibleTodoList container subscribes to the redux store and dispatches props and actions to the TodoList presentational component
+// The pre-filtering of the todo list based on the visibilityFilter is handled in this container
+class VisibleTodoList extends Component {
+  componentDidMount() {
+    this.unsubscribe = store.subscribe(() =>
+      this.forceUpdate()
+    );
+  }
+
+  componentWillUnmount() {
+    this.unsubscribe();
+  }
+
+  render() {
+    const props = this.props;
+    const state = store.getState();
+
+    return (
+      <TodoList
+        todos={
+          getVisibleTodos(
+            state.todos,
+            state.visibilityFilter
+          )
+        }
+        onTodoClick={id =>
+          store.dispatch({
+            type: 'TOGGLE_TODO',
+            id
+          })
+        }
+      />
+    );
+  }
+}
+
 // render each Todo item from the passed-in todos array, pre-filtered by the visibility filter
 const TodoList = ({
   todos,
@@ -91,15 +130,14 @@ const TodoList = ({
   </ul>
 );
 
-// each link receives a fixed filter prop to compare to the state, to determine whether a span or anchor is rendered
-// links also send their filter prop to the onClick handler to dispatch the SET_VISIBILITY_FILTER action
-const FilterLink = ({
-  filter,
-  currentFilter,
+// each link receives an active prop from its container, to determine whether a span or anchor is rendered
+// links also receive an onClick handler from their container
+const Link = ({
+  active,
   children,
   onClick
 }) => {
-  if (filter === currentFilter) {
+  if (active) {
     return (
       <span>{children}</span>
     );
@@ -108,7 +146,7 @@ const FilterLink = ({
     <a href='#'
       onClick={e => {
         e.preventDefault();
-        onClick(filter);
+        onClick();
       }}
     >
       {children}
@@ -116,34 +154,58 @@ const FilterLink = ({
   );
 }
 
-// take the visibilityFilter from state and a handler to control clicking of each filter
-const Footer = ({
-  visibilityFilter,
-  onFilterClick
-}) => (
+// FilterLink containers subscribe to the Redux store.  They render presentational link components and hold dispatch functions
+class FilterLink extends Component {
+  componentDidMount() {
+    this.unsubscribe = store.subscribe(() =>
+      this.forceUpdate()
+    );
+  }
+
+  componentWillUnmount() {
+    this.unsubscribe();
+  }
+
+  render() {
+    const props = this.props;
+    const state = store.getState();
+    return (
+      <Link
+        active={
+          props.filter === state.visibilityFilter
+        }
+        onClick={() =>
+          store.dispatch({
+            type: 'SET_VISIBILITY_FILTER',
+            filter: props.filter
+          })
+        }
+      >
+        {props.children}
+      </Link>
+    );
+  }
+}
+
+// pass a filter prop to each filter container to be used when dispatching actions
+const Footer = () => (
   <p>
     Show:
     {' '}
     <FilterLink
       filter='SHOW_ALL'
-      currentFilter={visibilityFilter}
-      onClick={onFilterClick}
     >
       All
     </FilterLink>
     {' '}
     <FilterLink
       filter='SHOW_ACTIVE'
-      currentFilter={visibilityFilter}
-      onClick={onFilterClick}
     >
       Active
     </FilterLink>
     {' '}
     <FilterLink
       filter='SHOW_COMPLETED'
-      currentFilter={visibilityFilter}
-      onClick={onFilterClick}
     >
       Completed
     </FilterLink>
@@ -151,59 +213,16 @@ const Footer = ({
 );
 
 // receive the Redux store state as props and render child components
-const App = ({
-  todos,
-  visibilityFilter
-}) => (
+const App = () => (
   <div>
-    <AddTodo
-      onAddClick={text =>
-        store.dispatch({
-          type: 'ADD_TODO',
-          id: nextTodoId++,
-          text
-        })
-      }
-    />
-    <TodoList
-      todos={
-        getVisibleTodos(
-          todos,
-          visibilityFilter
-        )
-      }
-      onTodoClick={id =>
-        store.dispatch({
-          type: 'TOGGLE_TODO',
-          id
-        })
-      }
-    />
-    <Footer
-      visibilityFilter={visibilityFilter}
-      onFilterClick={filter =>
-        store.dispatch({
-          type: 'SET_VISIBILITY_FILTER',
-          filter
-        })
-      }
-    />
+    <AddTodo />
+    <VisibleTodoList />
+    <Footer />
   </div>
 );
 
 // render the app  to the destination element and pass in the Redux state as props
-const render = () => {
-  ReactDOM.render(
-    <App
-      todos={store.getState().todos}
-      visibilityFilter={store.getState().visibilityFilter}
-    />,
-    document.getElementById('app')
-  );
-}
-
-// subscribe the app to the Redux store so that it can receive the state objects as props
-store.subscribe(render);
-
-// render the app for the first time
-render();
+ReactDOM.render(
+  <App />,
+  document.getElementById('app')
+);
