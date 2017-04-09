@@ -12,7 +12,6 @@ const todoApp = combineReducers({
   todos,
   visibilityFilter
 });
-const store = createStore(todoApp);
 let nextTodoId = 0;
 
 // pre-filter the list of todos against the visibilityFilter state before passing to TodoList
@@ -31,7 +30,7 @@ const getVisibleTodos = (
 }
 
 // This component fits neither the role of container, nor presentational component, but the functionality is very simple
-const AddTodo = () => {
+const AddTodo = ({store}) => {
 
   // as this is a functional component, the input ref can be a variable instead of a property on the class
   let input;
@@ -82,6 +81,7 @@ const Todo = ({
 // The pre-filtering of the todo list based on the visibilityFilter is handled in this container
 class VisibleTodoList extends Component {
   componentDidMount() {
+    const {store} = this.props;
     this.unsubscribe = store.subscribe(() =>
       this.forceUpdate()
     );
@@ -93,6 +93,7 @@ class VisibleTodoList extends Component {
 
   render() {
     const props = this.props;
+    const {store} = props;
     const state = store.getState();
 
     return (
@@ -157,6 +158,7 @@ const Link = ({
 // FilterLink containers subscribe to the Redux store.  They render presentational link components and hold dispatch functions
 class FilterLink extends Component {
   componentDidMount() {
+    const {store} = this.props;
     this.unsubscribe = store.subscribe(() =>
       this.forceUpdate()
     );
@@ -168,6 +170,7 @@ class FilterLink extends Component {
 
   render() {
     const props = this.props;
+    const {store} = props;
     const state = store.getState();
     return (
       <Link
@@ -188,24 +191,27 @@ class FilterLink extends Component {
 }
 
 // pass a filter prop to each filter container to be used when dispatching actions
-const Footer = () => (
+const Footer = ({store}) => (
   <p>
     Show:
     {' '}
     <FilterLink
       filter='SHOW_ALL'
+      store={store}
     >
       All
     </FilterLink>
     {' '}
     <FilterLink
       filter='SHOW_ACTIVE'
+      store={store}
     >
       Active
     </FilterLink>
     {' '}
     <FilterLink
       filter='SHOW_COMPLETED'
+      store={store}
     >
       Completed
     </FilterLink>
@@ -213,16 +219,17 @@ const Footer = () => (
 );
 
 // receive the Redux store state as props and render child components
-const App = () => (
+const App = ({store}) => (
   <div>
-    <AddTodo />
-    <VisibleTodoList />
-    <Footer />
+    <AddTodo store={store} />
+    <VisibleTodoList store={store} />
+    <Footer store={store} />
   </div>
 );
 
+
 // render the app  to the destination element and pass in the Redux state as props
 ReactDOM.render(
-  <App />,
+  <App store={createStore(todoApp)}/>,
   document.getElementById('app')
 );
