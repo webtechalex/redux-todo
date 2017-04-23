@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {Provider} from 'react-redux';
+import {Provider, connect} from 'react-redux';
 import {combineReducers, createStore} from 'redux';
 import ReactDOM from 'react-dom';
 
@@ -12,8 +12,31 @@ const todoApp = combineReducers({
   todos,
   visibilityFilter
 });
-let nextTodoId = 0;
 
+// ACTION CREATORS ----------------------------------------
+let nextTodoId = 0;
+const addTodo = (text) => {
+  return {
+    type: 'ADD_TODO',
+    id: nextTodoId++,
+    text
+  };
+}
+
+const toggleTodo = (id) => {
+  return {
+    type: 'TOGGLE_TODO',
+    id
+  };
+}
+
+const setVisibilityFilter = (filter) => {
+  return {
+    type: 'SET_VISIBILITY_FILTER',
+    filter
+  };
+}
+// --------------------------------------------------------
 // pre-filter the list of todos against the visibilityFilter state before passing to TodoList
 const getVisibleTodos = (
   todos,
@@ -30,11 +53,9 @@ const getVisibleTodos = (
 }
 
 // This component fits neither the role of container, nor presentational component, but the functionality is very simple
-const AddTodo = ({store}) => {
-
+let AddTodo = ({dispatch}) => {
   // as this is a functional component, the input ref can be a variable instead of a property on the class
   let input;
-
   return (
     <div>
       <input ref={node => {
@@ -43,11 +64,7 @@ const AddTodo = ({store}) => {
       />
       <button
         onClick={() => {
-          store.dispatch({
-            type: 'ADD_TODO',
-            id: nextTodoId++,
-            text: input.value
-          });
+          dispatch(addTodo(input.value));
           input.value = '';
         }}
       >
@@ -56,6 +73,8 @@ const AddTodo = ({store}) => {
     </div>
   );
 }
+
+AddTodo = connect()(AddTodo);
 
 // each Todo needs an onClick handler which is passed in to the TodoList component, dispatching TOGGLE_TODO
 // each Todo also needs to know its text, and completed values for content and styling
@@ -77,41 +96,19 @@ const Todo = ({
   </li>
 );
 
-// VisibleTodoList container subscribes to the redux store and dispatches props and actions to the TodoList presentational component
-// The pre-filtering of the todo list based on the visibilityFilter is handled in this container
-class VisibleTodoList extends Component {
-  componentDidMount() {
-    const {store} = this.props;
-    this.unsubscribe = store.subscribe(() =>
-      this.forceUpdate()
-    );
-  }
+const mapStateToTodoListProps = (state) => {
+  return {
+    todos: getVisibleTodos(
+      state.todos,
+      state.visibilityFilter
+    )
+  };
+}
 
-  componentWillUnmount() {
-    this.unsubscribe();
-  }
-
-  render() {
-    const props = this.props;
-    const {store} = props;
-    const state = store.getState();
-
-    return (
-      <TodoList
-        todos={
-          getVisibleTodos(
-            state.todos,
-            state.visibilityFilter
-          )
-        }
-        onTodoClick={id =>
-          store.dispatch({
-            type: 'TOGGLE_TODO',
-            id
-          })
-        }
-      />
-    );
+const mapDispatchToTodoListProps = (dispatch) => {
+  return {
+    onTodoClick: (id) =>
+      dispatch(toggleTodo(id))
   }
 }
 
@@ -130,6 +127,11 @@ const TodoList = ({
     )}
   </ul>
 );
+
+const VisibleTodoList = connect(
+  mapStateToTodoListProps,
+  mapDispatchToTodoListProps
+)(TodoList);
 
 // each link receives an active prop from its container, to determine whether a span or anchor is rendered
 // links also receive an onClick handler from their container
@@ -155,63 +157,43 @@ const Link = ({
   );
 }
 
-// FilterLink containers subscribe to the Redux store.  They render presentational link components and hold dispatch functions
-class FilterLink extends Component {
-  componentDidMount() {
-    const {store} = this.props;
-    this.unsubscribe = store.subscribe(() =>
-      this.forceUpdate()
-    );
-  }
-
-  componentWillUnmount() {
-    this.unsubscribe();
-  }
-
-  render() {
-    const props = this.props;
-    const {store} = props;
-    const state = store.getState();
-    return (
-      <Link
-        active={
-          props.filter === state.visibilityFilter
-        }
-        onClick={() =>
-          store.dispatch({
-            type: 'SET_VISIBILITY_FILTER',
-            filter: props.filter
-          })
-        }
-      >
-        {props.children}
-      </Link>
-    );
+const mapStateToLinkProps = (state, ownProps) => {
+  return {
+    active: ownProps.filter === state.visibilityFilter
   }
 }
 
+const mapDispatchToLinkProps = (dispatch, ownProps) => {
+  return {
+    onClick: () =>
+      dispatch(setVisibilityFilter(ownProps.filter))
+  }
+}
+
+const FilterLink = connect(
+  mapStateToLinkProps,
+  mapDispatchToLinkProps
+)(Link);
+
 // pass a filter prop to each filter container to be used when dispatching actions
-const Footer = ({store}) => (
+const Footer = () => (
   <p>
     Show:
     {' '}
     <FilterLink
       filter='SHOW_ALL'
-      store={store}
     >
       All
     </FilterLink>
     {' '}
     <FilterLink
       filter='SHOW_ACTIVE'
-      store={store}
     >
       Active
     </FilterLink>
     {' '}
     <FilterLink
       filter='SHOW_COMPLETED'
-      store={store}
     >
       Completed
     </FilterLink>
@@ -219,17 +201,33 @@ const Footer = ({store}) => (
 );
 
 // receive the Redux store state as props and render child components
-const App = ({store}) => (
+const App = () => (
   <div>
-    <AddTodo store={store} />
-    <VisibleTodoList store={store} />
-    <Footer store={store} />
+    <AddTodo />
+    <VisibleTodoList />
+    <Footer />
   </div>
 );
 
+// class Provider extends Component {
+//   getChildContext() {
+//     return {
+//       store: this.props.store
+//     };
+//   }
+
+//   render() {
+//     return this.props.children
+//   }
+// }
+// Provider.childContextTypes = {
+//   store: React.PropTypes.object
+// }
 
 // render the app  to the destination element and pass in the Redux state as props
 ReactDOM.render(
-  <App store={createStore(todoApp)}/>,
+  <Provider store={createStore(todoApp)}>
+    <App />
+  </Provider>,
   document.getElementById('app')
 );
